@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.GreenBall" name="greenball.repo" version="1.0.0" provider-name="ajsm90">
+<addon id="repository.greenball" name="GreenBall Repo" version="1.0.0" provider-name="ajsm90">
     <extension point="xbmc.addon.repository" name="GreenBall Repository">
         <dir>
-            <info compressed="false">https://raw.githubusercontent.com/ajsm90/greenball.repo/main/repo/zips/addons.xml</info>
-            <checksum>https://raw.githubusercontent.com/ajsm90/greenball.repo/main/repo/zips/addons.xml.md5</checksum>
-            <datadir zip="true">https://raw.githubusercontent.com/ajsm90/greenball.repo/main/repo/zips/</datadir>
+            <info compressed="false">https://ajsm90.github.io/greenball.repo/repo/zips/addons.xml</info>
+            <checksum>https://ajsm90.github.io/greenball.repo/repo/zips/addons.xml.md5</checksum>
+            <datadir zip="true">https://ajsm90.github.io/greenball.repo/repo/zips/</datadir>
         </dir>
     </extension>
     <extension point="xbmc.addon.metadata">
-        <summary>GreenBall repo</summary>
-        <description></description>
-        <disclaimer></disclaimer>
+        <summary>GreenBall Repo</summary>
+        <description>Repositorio que contiene el addon plugin.video.GreenBall</description>
         <platform>all</platform>
         <assets>
             <icon>icon.png</icon>
