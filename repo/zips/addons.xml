@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.GreenBall" name="greenball.repo" version="1.0.0" provider-name="ajsm90">
+<?xml version='1.0' encoding='utf-8'?>
+<addons><addon id="plugin.video.GreenBall" name="greenball.repo" version="1.0.0" provider-name="ajsm90">
     <extension point="xbmc.addon.repository" name="Example Repository">
         <dir>
             <info compressed="false">https://raw.githubusercontent.com/ajsm90/greenball.repo/main/repo/zips/addons.xml</info>
@@ -9,12 +9,12 @@
     </extension>
     <extension point="xbmc.addon.metadata">
         <summary>GreenBall repo</summary>
-        <description></description>
-        <disclaimer></disclaimer>
+        <description />
+        <disclaimer />
         <platform>all</platform>
         <assets>
             <icon>icon.png</icon>
             <fanart>fanart.jpg</fanart>
         </assets>
     </extension>
-</addon>
+</addon></addons>
