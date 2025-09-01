@@ -4,7 +4,7 @@
         <dir>
             <info compressed="true">https://ajsm90.github.io/greenball.repo/repo/zips/addons.xml</info>
             <checksum>https://ajsm90.github.io/greenball.repo/repo/zips/addons.xml.md5</checksum>
-            <datadir zip="true">https://ajsm90.github.io/greenball.repo/repo/</datadir>
+            <datadir zip="true">https://ajsm90.github.io/greenball.repo/repo/zips/</datadir>
         </dir>
     </extension>
     <extension point="xbmc.addon.metadata">
