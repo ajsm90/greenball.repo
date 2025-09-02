@@ -17,7 +17,8 @@
         <version>1.0.0</version>
         <provider-name></provider-name>
         <assets>
-            <icon>gballN.png</icon>
+            <icon>gballN.gif</icon>
+            <fanart>fanart.jpg</fanart>
         </assets>
     </extension>
 </addon>
