@@ -12,6 +12,8 @@ from search_canales import cargar_enlaces_desde_json
 from update_list import actualizar_lista, actualizar_lista2, actualizar_lista3, actualizar_lista_generica # Importar la función para actualizar la lista
 from directos import get_tv_programs, find_closest_channel  # Importa find_closest_channel de directos
 from tdt import obtener_canales_tdt
+import time
+
 # from directos2 import obtener_eventos
 # from links_cine import obtener_eventos_nuevos, search_movies
 
@@ -20,6 +22,8 @@ from links_series import obtener_series, obtener_episodios, buscar_series, obten
 from download import download_db
 # from links_series import obtener_series, obtener_episodios_serie, buscar_series, obtener_imagen_de_serie
 
+import requests, re
+session = requests.Session()
 
 def mostrar_notificacion(titulo, mensaje, duracion=3000):
     xbmcgui.Dialog().notification(titulo, mensaje, time=duracion, sound=False)
@@ -58,16 +62,97 @@ class KodiAddonWrapper:
             "Obtener series y pelis": "white",  # Rosa
         }
 
+        # for option in main_options:
+        #     color = colors.get(option, "white")  # Si no hay color asignado, por defecto será blanco
+        #     list_item = xbmcgui.ListItem(label=f"[COLOR {color}] {option} [/COLOR]")  # Aplicar color al texto
+        #     xbmcplugin.addDirectoryItem(
+        #         handle=self.handle,
+        #         url=f"{self.plugin_url}?action={option.lower().replace(' ', '_')}",
+        #         listitem=list_item,
+        #         isFolder=True,
+        #     )
         for option in main_options:
-            color = colors.get(option, "white")  # Si no hay color asignado, por defecto será blanco
-            list_item = xbmcgui.ListItem(label=f"[COLOR {color}] {option} [/COLOR]")  # Aplicar color al texto
+            color = colors.get(option, "white")
+            list_item = xbmcgui.ListItem(label=f"[COLOR {color}] {option} [/COLOR]")
             xbmcplugin.addDirectoryItem(
                 handle=self.handle,
-                url=f"{self.plugin_url}?action={option.lower().replace(' ', '_')}",
+                url=f"{self.plugin_url}?action={option.lower().replace(' ', '_')}&ts={int(time.time())}",
                 listitem=list_item,
-                isFolder=True,
+                isFolder=True
             )
+        note_id = "e07hh8864iiw"
+        clave = "666900"
+        self.show_notepad_note_items(note_id, clave)
         xbmcplugin.endOfDirectory(self.handle)
+
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://notepad.cc",
+    })
+    def show_notepad_note_items(self, note_id, clave):
+        # Autenticación
+        auth_url = f"https://notepad.cc/api/notes/{note_id}/authenticate?readonly=true"
+        auth_resp = session.post(auth_url, json={"password": clave}, headers={
+            "Referer": f"https://notepad.cc/share/{note_id}"
+        })
+        if auth_resp.status_code != 200:
+            return
+
+        # Obtener nota
+        note_url = f"https://notepad.cc/api/notes/{note_id}?readonly=true"
+        note_resp = session.get(note_url, headers={
+            "Referer": f"https://notepad.cc/share/{note_id}"
+        })
+        if note_resp.status_code != 200:
+            return
+
+        text = note_resp.text
+
+        # 🔹 Buscar INFO y LINKS más rápido (sin findall)
+        info_match = re.search(r"INFO:\s*\[(.*?)\]", text)
+        info_text = info_match.group(1).strip() if info_match else ""
+
+        links_match = re.search(r"LINKS:\s*\[(.*?)\]", text)
+        links_raw = links_match.group(1) if links_match else ""
+
+        # 🔹 Procesar LINKS sin regex
+        ace_links, channel_names = [], []
+        if links_raw:
+            links_items = [item.strip() for item in links_raw.replace("\\n", "").split(",") if item.strip()]
+            for item in links_items:
+                if "|" in item:
+                    ace, name = item.split("|", 1)
+                    ace_links.append(ace.strip())
+                    channel_names.append(name.strip())
+                else:
+                    ace_links.append(item.strip())
+                    channel_names.append("")
+
+        # 🔹 Añadir los canales
+        for ace, name in zip(ace_links, channel_names):
+            hash_id = ace.replace("acestream://", "")
+            list_item = xbmcgui.ListItem(label=name or hash_id)
+            list_item.setInfo("video", {"title": name or hash_id})
+            list_item.setProperty("IsPlayable", "true")
+            xbmcplugin.addDirectoryItem(
+                handle=self.handle,
+                url=f"plugin://script.module.horus?action=play&id={hash_id}",
+                listitem=list_item,
+                isFolder=False
+            )
+
+        # 🔹 Añadir INFO al final
+        if info_text:
+            list_item = xbmcgui.ListItem(label=f"[COLOR yellow]{info_text}[/COLOR]")
+            list_item.setArt({'icon': 'DefaultIconInfo.png'})
+            list_item.setInfo("video", {"title": info_text})
+            xbmcplugin.addDirectoryItem(
+                handle=self.handle,
+                url="#",
+                listitem=list_item,
+                isFolder=False
+            )
 
     def mostrar_canales_tdt(self):
         canales = obtener_canales_tdt()
@@ -514,7 +599,7 @@ class KodiAddonWrapper:
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
         else:
             self.show_main_menu()
-
+            
 
 def main():
     addon = KodiAddonWrapper()
