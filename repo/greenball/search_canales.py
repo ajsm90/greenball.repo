@@ -13,10 +13,11 @@ def mostrar_notificacion(titulo, mensaje, duracion=3000):
 
 def cargar_enlaces_desde_json():
     if os.path.exists(LINKS_FILE):
-        with open(LINKS_FILE, 'r') as f:
+        with open(LINKS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
             links = data.get('links', [])
             names = data.get('names', [])
-            colortext = data.get('colortext', 'white')  # Devuelve el color defecto white
+            colortext = data.get('colortext', 'white')  # Devuelve el color por defecto white
             return links, names, colortext
     return [], [], 'white'  # Si no existe el archivo, devuelve listas vacías y color por defecto
+

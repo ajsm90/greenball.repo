@@ -9,7 +9,7 @@ import urllib.parse
 from urllib.parse import quote_plus
 import difflib 
 from search_canales import cargar_enlaces_desde_json
-from update_list import actualizar_lista, actualizar_lista2, actualizar_lista3, actualizar_lista_generica # Importar la función para actualizar la lista
+from update_list import actualizar_lista2, actualizar_lista_generica # Importar la función para actualizar la lista
 from directos import get_tv_programs, find_closest_channel  # Importa find_closest_channel de directos
 from tdt import obtener_canales_tdt
 import time
@@ -62,24 +62,16 @@ class KodiAddonWrapper:
             "Obtener series y pelis": "white",  # Rosa
         }
 
-        # for option in main_options:
-        #     color = colors.get(option, "white")  # Si no hay color asignado, por defecto será blanco
-        #     list_item = xbmcgui.ListItem(label=f"[COLOR {color}] {option} [/COLOR]")  # Aplicar color al texto
-        #     xbmcplugin.addDirectoryItem(
-        #         handle=self.handle,
-        #         url=f"{self.plugin_url}?action={option.lower().replace(' ', '_')}",
-        #         listitem=list_item,
-        #         isFolder=True,
-        #     )
         for option in main_options:
-            color = colors.get(option, "white")
-            list_item = xbmcgui.ListItem(label=f"[COLOR {color}] {option} [/COLOR]")
+            color = colors.get(option, "white")  # Si no hay color asignado, por defecto será blanco
+            list_item = xbmcgui.ListItem(label=f"[COLOR {color}] {option} [/COLOR]")  # Aplicar color al texto
             xbmcplugin.addDirectoryItem(
                 handle=self.handle,
-                url=f"{self.plugin_url}?action={option.lower().replace(' ', '_')}&ts={int(time.time())}",
+                url=f"{self.plugin_url}?action={option.lower().replace(' ', '_')}",
                 listitem=list_item,
-                isFolder=True
+                isFolder=True,
             )
+    
         note_id = "e07hh8864iiw"
         clave = "666900"
         self.show_notepad_note_items(note_id, clave)
@@ -177,11 +169,11 @@ class KodiAddonWrapper:
     
     def show_directos(self):
         """Display live events with their associated channels, grouped by date."""
-        canales_url = "https://actualsebastian.vercel.app/base.txt"
+        canales_url = "https://ipfs.io/ipns/k51qzi5uqu5dgg9al11vomikugim0o1i3l3fxp3ym3jwaswmy9uz8pq4brg1u9"
         links, names, colortext = cargar_enlaces_desde_json()
 
         if not links or not names:
-            links, names, colortext = actualizar_lista3(canales_url)
+            links, names, colortext = actualizar_lista2(canales_url)
 
         # Obtener los eventos deportivos
         channel_map = {"names": names, "links": links}
@@ -588,7 +580,7 @@ class KodiAddonWrapper:
         elif action == "actualizar_canales_opcion_1":
             self.update_list()
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "actualizar_canales_opcion_2":
+        elif action == "actualizar_canales_opcion_2_(por_defecto)":
             self.update_list2()
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
         elif action == "actualizar_canales_opcion_3":
