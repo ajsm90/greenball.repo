@@ -4,6 +4,11 @@ import requests
 from bs4 import BeautifulSoup
 import xbmcgui
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import base64, gzip, json, requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+
 
 
 # Constants
@@ -141,3 +146,105 @@ def actualizar_lista_generica(url, config, colortext):
         mostrar_notificacion("Error", f"Error al actualizar la lista: {e}", 1000)
 
     return acestream_links, link_names, colortext
+
+
+# --- Funciones de codificación/decodificación ---
+def obfuscate(domain: str) -> str:
+    return base64.b32encode(domain.encode()).decode().strip('=')
+
+def deobfuscate(obf: str) -> str:
+    padding = '=' * ((8 - len(obf) % 8) % 8)
+    return base64.b32decode(obf + padding).decode()
+
+def decodificar_datos(registro: str):
+    try:
+        registro = registro.replace('text = ', '').replace('"', '').strip()
+        data = base64.b64decode(registro)
+        try:
+            data = gzip.decompress(data)
+        except:
+            pass
+        return json.loads(data)
+    except:
+        return []
+
+# --- Función para consultar registros TXT vía Cloudflare DoH ---
+def consultar_dominio_doh(domain: str):
+    url = f"https://cloudflare-dns.com/dns-query?name={domain}&type=TXT"
+    headers = {"Accept": "application/dns-json"}
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        registros = []
+        if 'Answer' in data:
+            for ans in data['Answer']:
+                txt = ans['data'].strip('"')
+                registros.append(txt)
+        return registros
+    except Exception as e:
+        print("Error DNS DoH:", e)
+        return []
+
+# --- Función recursiva ---
+def obtener_datos_recursivo(codigo, procesados=None):
+    if procesados is None:
+        procesados = set()
+    if codigo in procesados:
+        return []
+    procesados.add(codigo)
+
+    dominio = f"{codigo}.elcano.top"
+    dominio_obf = obfuscate(dominio)
+    dominio_final = deobfuscate(dominio_obf)
+
+    registros = consultar_dominio_doh(dominio_final)
+    elementos_finales = []
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futuros = {executor.submit(decodificar_datos, r): r for r in registros}
+        for fut in as_completed(futuros):
+            for elem in fut.result():
+                if elem.get('type') == 'category' and elem.get('ref'):
+                    elementos_finales.extend(obtener_datos_recursivo(elem['ref'], procesados))
+                if elem.get('subLinks'):
+                    elementos_finales.extend(elem['subLinks'])
+                if elem.get('url'):
+                    elementos_finales.append(elem)
+    return elementos_finales
+
+# --- Función principal ---
+def actualizar_lista_dns(codigo, colortext):
+    mostrar_notificacion("Actualizando lista", f"Obteniendo enlaces...", 1000)
+
+    elementos = obtener_datos_recursivo(codigo)
+    links = []
+    names = []
+    vistos = set()
+
+    for elem in elementos:
+        url = elem.get('url')
+        nombre = elem.get('name', 'Stream sin nombre')
+
+        # Filtrar solo enlaces AceStream válidos
+        if not url or not url.startswith("acestream://"):
+            continue
+
+        # Evitar duplicados
+        if url in vistos:
+            continue
+        vistos.add(url)
+
+        # Guardar el enlace, el nombre y el color
+        links.append(url.replace("acestream://", "").strip())
+        names.append(nombre)
+
+    # Guardar la lista en el archivo
+    with open(LINKS_FILE, 'w', encoding='utf-8') as f:
+        json.dump({"links": links, "names": names, "colortext": colortext}, f, ensure_ascii=False)
+
+    # Mostrar notificación con la cantidad de canales encontrados
+    mostrar_notificacion("Lista actualizada", f"Se encontraron {len(links)} canales", 5000)
+    print(f"Lista actualizada: {len(links)} canales")
+
+    return links, names, colortext

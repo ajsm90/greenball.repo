@@ -9,7 +9,7 @@ import urllib.parse
 from urllib.parse import quote_plus
 import difflib 
 from search_canales import cargar_enlaces_desde_json
-from update_list import actualizar_lista2, actualizar_lista_generica # Importar la función para actualizar la lista
+from update_list import actualizar_lista2, actualizar_lista_generica, actualizar_lista_dns # Importar la función para actualizar la lista
 from directos import get_tv_programs, find_closest_channel  # Importa find_closest_channel de directos
 from tdt import obtener_canales_tdt
 import time
@@ -44,8 +44,8 @@ class KodiAddonWrapper:
         """Display the main menu with options."""
         main_options = [
         "TDT", "Directos", "Canales", 
-        "Actualizar canales opcion 1", "Actualizar canales opcion 2 (por defecto)", 
-        "Actualizar canales opcion 3","Actualizar canales opcion 4", "Cine", "Series", "Obtener series y pelis"
+        "Elegir canales opcion 1", "Elegir canales opcion 2 (por defecto)", 
+        "Elegir canales opcion 3","Elegir canales opcion 4", "Elegir canales opcion 5", "Elegir canales opcion 6", "Cine", "Series", "Obtener series y pelis"
         ]
         
         # Definir un diccionario de colores para las opciones, por ejemplo:
@@ -53,10 +53,12 @@ class KodiAddonWrapper:
             "TDT": "white",  # Color hexadecimal
             "Directos": "white",  # RGB
             "Canales": "white",  # Nombre de color
-            "Actualizar canales opcion 1": "lightyellow",  # Tomate (hexadecimal)
-            "Actualizar canales opcion 2 (por defecto)": "aqua",  # Azul
-            "Actualizar canales opcion 3": "yellowgreen",  # Naranja
-            "Actualizar canales opcion 4": "blue",  # Naranja
+            "Elegir canales opcion 1": "lightyellow",  # Tomate (hexadecimal)
+            "Elegir canales opcion 2 (por defecto)": "aqua",  # Azul
+            "Elegir canales opcion 3": "yellowgreen",  # Naranja
+            "Elegir canales opcion 4": "blue",  # Naranja
+            "Elegir canales opcion 5": "yellow",
+            "Elegir canales opcion 6": "yellow",  # red
             "Cine": "white",  # Oro (hexadecimal)
             "Series": "white",  # Púrpura
             "Obtener series y pelis": "white",  # Rosa
@@ -136,7 +138,7 @@ class KodiAddonWrapper:
 
         # 🔹 Añadir INFO al final
         if info_text:
-            list_item = xbmcgui.ListItem(label=f"[COLOR yellow]{info_text}[/COLOR]")
+            list_item = xbmcgui.ListItem(label=f"[COLOR aqua]{info_text}[/COLOR]")
             list_item.setArt({'icon': 'DefaultIconInfo.png'})
             list_item.setInfo("video", {"title": info_text})
             xbmcplugin.addDirectoryItem(
@@ -189,7 +191,7 @@ class KodiAddonWrapper:
             eventos_por_fecha[evento.day].append(evento)  # Guardamos el objeto Event, no una tupla
 
         # Definir los deportes que queremos mostrar
-        deportes_validos = ["Fútbol", "Fórmula 1", "Motos"]
+        deportes_validos = ["Fútbol", "Fórmula 1", "Motos", "Baloncesto", "Tenis", "Boxeo", "Ciclismo"]
         
         # Mostrar los eventos en el menú, agrupados por fecha
         for fecha, eventos_lista in eventos_por_fecha.items():
@@ -304,9 +306,25 @@ class KodiAddonWrapper:
         links, names, colortext = actualizar_lista_generica("https://shickat.me/", config_canalcard, colortext)
 
 
+    def update_list5(self):
+        colortext = "yellow"
+        
+        # --- Usando la fuente DNS en lugar de la web ---
+        codigo_dns = "681fc74c1833d17ffd9a9c59"  # Ajusta según lo que quieras
+        links, names, colortext = actualizar_lista_dns(codigo_dns, colortext)
 
+        # Aquí podrías seguir usando links, names y colortext como antes
+        print(f"Se actualizaron {len(links)} enlaces desde DNS")
     
+    def update_list6(self):
+        colortext = "yellow"
+        
+        # --- Usando la fuente DNS en lugar de la web ---
+        codigo_dns = "682cb7103451b27a40bc9aa2"  # Ajusta según lo que quieras
+        links, names, colortext = actualizar_lista_dns(codigo_dns, colortext)
 
+        # Aquí podrías seguir usando links, names y colortext como antes
+        print(f"Se actualizaron {len(links)} enlaces desde DNS")
     
 
     def mostrar_pelis(self, pagina=1):
@@ -577,17 +595,23 @@ class KodiAddonWrapper:
             self.mostrar_canales_tdt()
         elif action == "canales":
             self.show_canales()
-        elif action == "actualizar_canales_opcion_1":
+        elif action == "elegir_canales_opcion_1":
             self.update_list()
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "actualizar_canales_opcion_2_(por_defecto)":
+        elif action == "elegir_canales_opcion_2_(por_defecto)":
             self.update_list2()
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "actualizar_canales_opcion_3":
+        elif action == "elegir_canales_opcion_3":
             self.update_list3()
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "actualizar_canales_opcion_4":
+        elif action == "elegir_canales_opcion_4":
             self.update_list4()
+            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        elif action == "elegir_canales_opcion_5":
+            self.update_list5()
+            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        elif action == "elegir_canales_opcion_6":
+            self.update_list6()
             xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
         else:
             self.show_main_menu()
