@@ -9,7 +9,6 @@ import urllib.parse
 from urllib.parse import quote_plus
 import difflib 
 from search_canales import cargar_enlaces_desde_json
-from update_list import actualizar_lista2, actualizar_lista_generica, actualizar_lista_dns # Importar la función para actualizar la lista
 from directos import get_tv_programs, find_closest_channel  # Importa find_closest_channel de directos
 from tdt import obtener_canales_tdt
 import time
@@ -42,10 +41,13 @@ class KodiAddonWrapper:
     def show_main_menu(self):
         
         """Display the main menu with options."""
+        # main_options = [
+        # "TDT", "Directos", "Canales", 
+        # "Elegir canales opcion 1", "Elegir canales opcion 2 (por defecto)", 
+        # "Elegir canales opcion 3","Elegir canales opcion 4", "Elegir canales opcion 5", "Elegir canales opcion 6", "Cine", "Series", "Obtener series y pelis"
+        # ]
         main_options = [
-        "TDT", "Directos", "Canales", 
-        "Elegir canales opcion 1", "Elegir canales opcion 2 (por defecto)", 
-        "Elegir canales opcion 3","Elegir canales opcion 4", "Elegir canales opcion 5", "Elegir canales opcion 6", "Cine", "Series", "Obtener series y pelis"
+        "TDT", "Directos", "Canales", "Cine", "Series", "Obtener series y pelis"
         ]
         
         # Definir un diccionario de colores para las opciones, por ejemplo:
@@ -53,12 +55,12 @@ class KodiAddonWrapper:
             "TDT": "white",  # Color hexadecimal
             "Directos": "white",  # RGB
             "Canales": "white",  # Nombre de color
-            "Elegir canales opcion 1": "lightyellow",  # Tomate (hexadecimal)
-            "Elegir canales opcion 2 (por defecto)": "aqua",  # Azul
-            "Elegir canales opcion 3": "yellowgreen",  # Naranja
-            "Elegir canales opcion 4": "blue",  # Naranja
-            "Elegir canales opcion 5": "yellow",
-            "Elegir canales opcion 6": "yellow",  # red
+            # "Elegir canales opcion 1": "lightyellow",  # Tomate (hexadecimal)
+            # "Elegir canales opcion 2 (por defecto)": "aqua",  # Azul
+            # "Elegir canales opcion 3": "yellowgreen",  # Naranja
+            # "Elegir canales opcion 4": "blue",  # Naranja
+            # "Elegir canales opcion 5": "yellow",
+            # "Elegir canales opcion 6": "yellow",  # red
             "Cine": "white",  # Oro (hexadecimal)
             "Series": "white",  # Púrpura
             "Obtener series y pelis": "white",  # Rosa
@@ -171,11 +173,25 @@ class KodiAddonWrapper:
     
     def show_directos(self):
         """Display live events with their associated channels, grouped by date."""
-        canales_url = "https://ipfs.io/ipns/k51qzi5uqu5dgg9al11vomikugim0o1i3l3fxp3ym3jwaswmy9uz8pq4brg1u9"
-        links, names, colortext = cargar_enlaces_desde_json()
+        data = cargar_enlaces_desde_json()
 
-        if not links or not names:
-            links, names, colortext = actualizar_lista2(canales_url)
+        links = data.get("links", [])
+        names = data.get("names", [])
+        colortext = data.get("colortext", "white")
+        last_update = data.get("last_update", "desconocida")
+
+        data = cargar_enlaces_desde_json()
+        last_update = data.get("last_update", "desconocida")
+
+        # Mostrar un item al principio con la fecha de última actualización
+        info_item = xbmcgui.ListItem(label=f"[COLOR yellow][B]Canales actualizados: {last_update}[/B][/COLOR]")
+        info_item.setInfo("video", {"title": "Última actualización"})
+        xbmcplugin.addDirectoryItem(
+            handle=self.handle,
+            url="",
+            listitem=info_item,
+            isFolder=False
+        )
 
         # Obtener los eventos deportivos
         channel_map = {"names": names, "links": links}
@@ -184,27 +200,22 @@ class KodiAddonWrapper:
         # Agrupar eventos por fecha
         eventos_por_fecha = {}
         for evento in eventos:
-            
-            # Agregar el evento a la lista de esa fecha
             if evento.day not in eventos_por_fecha:
                 eventos_por_fecha[evento.day] = []
-            eventos_por_fecha[evento.day].append(evento)  # Guardamos el objeto Event, no una tupla
+            eventos_por_fecha[evento.day].append(evento)
 
-        # Definir los deportes que queremos mostrar
         deportes_validos = ["Fútbol", "Fórmula 1", "Motos", "Baloncesto", "Tenis", "Boxeo", "Ciclismo"]
-        
+
         # Mostrar los eventos en el menú, agrupados por fecha
         for fecha, eventos_lista in eventos_por_fecha.items():
-            # Enviar la fecha como un "comentario" sin enlace, con color amarillo
             list_item_fecha = xbmcgui.ListItem(label=f"[COLOR yellow]{fecha}[/COLOR]")
             xbmcplugin.addDirectoryItem(
                 handle=self.handle,
-                url="#",  # No tiene enlace, es solo un comentario
+                url="#",
                 listitem=list_item_fecha,
                 isFolder=False
             )
 
-            # Mostrar cada evento de esa fecha con su hora
             for evento in eventos_lista:
                 hora = evento.time
                 nombre_evento = evento.name
@@ -212,16 +223,15 @@ class KodiAddonWrapper:
                 tipoevento = evento.sport
                 closest_channel = find_closest_channel(canal, names)
 
-                # Filtrar los eventos por los deportes válidos
                 if evento.sport not in deportes_validos:
-                    continue  # Si el deporte no es válido, omitir el evento
+                    continue
 
-                # Si hay enlace
                 if closest_channel:
                     idx = names.index(closest_channel)
                     acestream_link = links[idx]
-                    # Incluir la hora, nombre del evento y canal en el label
-                    list_item = xbmcgui.ListItem(label=f"[COLOR {colortext}]{hora} - {nombre_evento} - {canal} - {tipoevento}[/COLOR]")
+                    list_item = xbmcgui.ListItem(
+                        label=f"[COLOR {colortext}]{hora} - {nombre_evento} - {canal} - {tipoevento}[/COLOR]"
+                    )
                     list_item.setInfo("video", {"title": f"{nombre_evento} - {tipoevento}"})
                     list_item.setProperty("IsPlayable", "true")
 
@@ -232,99 +242,111 @@ class KodiAddonWrapper:
                         isFolder=False
                     )
 
-            # Si no hay eventos válidos (sin enlace o sin deporte válido), no se añaden al menú.
-            # No es necesario mostrar nada si no se encuentra enlace o si el deporte es inválido.
-
         xbmcplugin.endOfDirectory(self.handle)
+
     
     
     def show_canales(self):
         """Display the Canales menu."""
-        canales_url = "https://ipfs.io/ipns/k51qzi5uqu5dgg9al11vomikugim0o1i3l3fxp3ym3jwaswmy9uz8pq4brg1u9" 
-        links, names, colortext = cargar_enlaces_desde_json()
+        data = cargar_enlaces_desde_json()  # Ahora devuelve también 'last_update'
 
-        if not links or not names:
-            # Si no hay enlaces, busca y guarda en JSON
-            links, names, colortext = actualizar_lista2(canales_url)
+        links = data.get("links", [])
+        names = data.get("names", [])
+        colortext = data.get("colortext", "white")
+        last_update = data.get("last_update", "desconocida")
+
+        
+        data = cargar_enlaces_desde_json()
+        last_update = data.get("last_update", "desconocida")
+
+        # Mostrar un item al principio con la fecha de última actualización
+        info_item = xbmcgui.ListItem(label=f"[COLOR yellow][B]Canales actualizados: {last_update}[/B][/COLOR]")
+        info_item.setInfo("video", {"title": "Última actualización"})
+        xbmcplugin.addDirectoryItem(
+            handle=self.handle,
+            url="",
+            listitem=info_item,
+            isFolder=False
+        )
 
         # Mostrar los canales en el menú
         for idx, (name, link) in enumerate(zip(names, links), start=1):
-            # Aplicar el color al texto del nombre del canal usando el valor colortext
-            list_item = xbmcgui.ListItem(label=f"[COLOR {colortext}] {name} [/COLOR]")  # Aplicar color
-            list_item.setInfo("video", {"title": name})  # Añadir información sobre el video
+            list_item = xbmcgui.ListItem(label=f"[COLOR {colortext}] {name} [/COLOR]")
+            list_item.setInfo("video", {"title": name})
             xbmcplugin.addDirectoryItem(
                 handle=self.handle,
-                url=f"plugin://script.module.horus?action=play&id={link}",  # URL para reproducir
+                url=f"plugin://script.module.horus?action=play&id={link}",
                 listitem=list_item,
                 isFolder=False,
             )
         
         xbmcplugin.endOfDirectory(self.handle)
 
-    def update_list(self):
-        config_eventos = {
-            "mode": "html",
-            "selector": "td.canales a",
-            "attr": "href",
-            "prefix": "acestream://",
-            "text": True
-        }
-        colortext = "lightyellow"
-        links, names, colortext  = actualizar_lista_generica("https://eventos-uvl7.vercel.app/", config_eventos, colortext)
 
-    def update_list2(self):
-        """Update the list of channels el cano."""
-        canales_url = "https://ipfs.io/ipns/k51qzi5uqu5dgg9al11vomikugim0o1i3l3fxp3ym3jwaswmy9uz8pq4brg1u9"  
+    # def update_list(self):
+    #     config_eventos = {
+    #         "mode": "html",
+    #         "selector": "td.canales a",
+    #         "attr": "href",
+    #         "prefix": "acestream://",
+    #         "text": True
+    #     }
+    #     colortext = "lightyellow"
+    #     links, names, colortext  = actualizar_lista_generica("https://eventos-uvl7.vercel.app/", config_eventos, colortext)
 
-        links, names, colortext = actualizar_lista2(canales_url)  # Llamar a la función para actualizar la lista
+    # def update_list2(self):
+    #     """Update the list of channels el cano."""
+    #     canales_url = "https://ipfs.io/ipns/k51qzi5uqu5dgg9al11vomikugim0o1i3l3fxp3ym3jwaswmy9uz8pq4brg1u9"  
 
-    def update_list3(self):
-        canales_url = "https://fr.4everproxy.com/direct/aHR0cHM6Ly9jaXJpYWNvLWxpYXJ0LnZlcmNlbC5hcHAv"
+    #     links, names, colortext = actualizar_lista2(canales_url)  # Llamar a la función para actualizar la lista
 
-        config_freijo = {
-            "mode": "html",            
-            "selector": "tr td a",
-            "attr": "href",
-            "prefix": "acestream://",
-            "text": True
-        }
-        colortext = "yellowgreen"
-        links, names, colortext = actualizar_lista_generica(canales_url, config_freijo, colortext)
+    # def update_list3(self):
+    #     canales_url = "https://fr.4everproxy.com/direct/aHR0cHM6Ly9jaXJpYWNvLWxpYXJ0LnZlcmNlbC5hcHAv"
 
-    def update_list4(self):
-        """Update the list of channels."""
-        config_canalcard = {
-            "mode": "html",
-            "selector": "article.canal-card a.acestream-link",
-            "attr": "href",
-            "prefix": "acestream://",
-            "text": False,
-            "name_selector": "span.canal-nombre",
-            "parent_tag": "article"   # para buscar el nombre dentro del mismo bloque
-        }
-        colortext = "blue"
-        links, names, colortext = actualizar_lista_generica("https://shickat.me/", config_canalcard, colortext)
+    #     config_freijo = {
+    #         "mode": "html",            
+    #         "selector": "tr td a",
+    #         "attr": "href",
+    #         "prefix": "acestream://",
+    #         "text": True
+    #     }
+    #     colortext = "yellowgreen"
+    #     links, names, colortext = actualizar_lista_generica(canales_url, config_freijo, colortext)
+
+    # def update_list4(self):
+    #     """Update the list of channels."""
+    #     config_canalcard = {
+    #         "mode": "html",
+    #         "selector": "article.canal-card a.acestream-link",
+    #         "attr": "href",
+    #         "prefix": "acestream://",
+    #         "text": False,
+    #         "name_selector": "span.canal-nombre",
+    #         "parent_tag": "article"   # para buscar el nombre dentro del mismo bloque
+    #     }
+    #     colortext = "blue"
+    #     links, names, colortext = actualizar_lista_generica("https://shickat.me/", config_canalcard, colortext)
 
 
-    def update_list5(self):
-        colortext = "yellow"
+    # def update_list5(self):
+    #     colortext = "yellow"
         
-        # --- Usando la fuente DNS en lugar de la web ---
-        codigo_dns = "681fc74c1833d17ffd9a9c59"  # Ajusta según lo que quieras
-        links, names, colortext = actualizar_lista_dns(codigo_dns, colortext)
+    #     # --- Usando la fuente DNS en lugar de la web ---
+    #     codigo_dns = "681fc74c1833d17ffd9a9c59"  # Ajusta según lo que quieras
+    #     links, names, colortext = actualizar_lista_dns(codigo_dns, colortext)
 
-        # Aquí podrías seguir usando links, names y colortext como antes
-        print(f"Se actualizaron {len(links)} enlaces desde DNS")
+    #     # Aquí podrías seguir usando links, names y colortext como antes
+    #     print(f"Se actualizaron {len(links)} enlaces desde DNS")
     
-    def update_list6(self):
-        colortext = "yellow"
+    # def update_list6(self):
+    #     colortext = "yellow"
         
-        # --- Usando la fuente DNS en lugar de la web ---
-        codigo_dns = "682cb7103451b27a40bc9aa2"  # Ajusta según lo que quieras
-        links, names, colortext = actualizar_lista_dns(codigo_dns, colortext)
+    #     # --- Usando la fuente DNS en lugar de la web ---
+    #     codigo_dns = "682cb7103451b27a40bc9aa2"  # Ajusta según lo que quieras
+    #     links, names, colortext = actualizar_lista_dns(codigo_dns, colortext)
 
-        # Aquí podrías seguir usando links, names y colortext como antes
-        print(f"Se actualizaron {len(links)} enlaces desde DNS")
+    #     # Aquí podrías seguir usando links, names y colortext como antes
+    #     print(f"Se actualizaron {len(links)} enlaces desde DNS")
     
 
     def mostrar_pelis(self, pagina=1):
@@ -595,24 +617,24 @@ class KodiAddonWrapper:
             self.mostrar_canales_tdt()
         elif action == "canales":
             self.show_canales()
-        elif action == "elegir_canales_opcion_1":
-            self.update_list()
-            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "elegir_canales_opcion_2_(por_defecto)":
-            self.update_list2()
-            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "elegir_canales_opcion_3":
-            self.update_list3()
-            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "elegir_canales_opcion_4":
-            self.update_list4()
-            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "elegir_canales_opcion_5":
-            self.update_list5()
-            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
-        elif action == "elegir_canales_opcion_6":
-            self.update_list6()
-            xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        # elif action == "elegir_canales_opcion_1":
+        #     self.update_list()
+        #     xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        # elif action == "elegir_canales_opcion_2_(por_defecto)":
+        #     self.update_list2()
+        #     xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        # elif action == "elegir_canales_opcion_3":
+        #     self.update_list3()
+        #     xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        # elif action == "elegir_canales_opcion_4":
+        #     self.update_list4()
+        #     xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        # elif action == "elegir_canales_opcion_5":
+        #     self.update_list5()
+        #     xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
+        # elif action == "elegir_canales_opcion_6":
+        #     self.update_list6()
+        #     xbmcgui.Dialog().notification("Info", "Lista actualizada exitosamente.")
         else:
             self.show_main_menu()
             
