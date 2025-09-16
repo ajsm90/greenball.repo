@@ -9,7 +9,7 @@ import urllib.parse
 from urllib.parse import quote_plus
 import difflib 
 from search_canales import cargar_enlaces_desde_json
-from directos import get_tv_programs, find_closest_channel  # Importa find_closest_channel de directos
+from directos import get_tv_programs, find_closest_channel, normalize_channel_name  # Importa find_closest_channel de directos
 from tdt import obtener_canales_tdt
 import time
 
@@ -75,80 +75,7 @@ class KodiAddonWrapper:
                 listitem=list_item,
                 isFolder=True,
             )
-    
-        note_id = "e07hh8864iiw"
-        clave = "666900"
-        self.show_notepad_note_items(note_id, clave)
         xbmcplugin.endOfDirectory(self.handle)
-
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://notepad.cc",
-    })
-    def show_notepad_note_items(self, note_id, clave):
-        # Autenticación
-        auth_url = f"https://notepad.cc/api/notes/{note_id}/authenticate?readonly=true"
-        auth_resp = session.post(auth_url, json={"password": clave}, headers={
-            "Referer": f"https://notepad.cc/share/{note_id}"
-        })
-        if auth_resp.status_code != 200:
-            return
-
-        # Obtener nota
-        note_url = f"https://notepad.cc/api/notes/{note_id}?readonly=true"
-        note_resp = session.get(note_url, headers={
-            "Referer": f"https://notepad.cc/share/{note_id}"
-        })
-        if note_resp.status_code != 200:
-            return
-
-        text = note_resp.text
-
-        # 🔹 Buscar INFO y LINKS más rápido (sin findall)
-        info_match = re.search(r"INFO:\s*\[(.*?)\]", text)
-        info_text = info_match.group(1).strip() if info_match else ""
-
-        links_match = re.search(r"LINKS:\s*\[(.*?)\]", text)
-        links_raw = links_match.group(1) if links_match else ""
-
-        # 🔹 Procesar LINKS sin regex
-        ace_links, channel_names = [], []
-        if links_raw:
-            links_items = [item.strip() for item in links_raw.replace("\\n", "").split(",") if item.strip()]
-            for item in links_items:
-                if "|" in item:
-                    ace, name = item.split("|", 1)
-                    ace_links.append(ace.strip())
-                    channel_names.append(name.strip())
-                else:
-                    ace_links.append(item.strip())
-                    channel_names.append("")
-
-        # 🔹 Añadir los canales
-        for ace, name in zip(ace_links, channel_names):
-            hash_id = ace.replace("acestream://", "")
-            list_item = xbmcgui.ListItem(label=name or hash_id)
-            list_item.setInfo("video", {"title": name or hash_id})
-            list_item.setProperty("IsPlayable", "true")
-            xbmcplugin.addDirectoryItem(
-                handle=self.handle,
-                url=f"plugin://script.module.horus?action=play&id={hash_id}",
-                listitem=list_item,
-                isFolder=False
-            )
-
-        # 🔹 Añadir INFO al final
-        if info_text:
-            list_item = xbmcgui.ListItem(label=f"[COLOR aqua]{info_text}[/COLOR]")
-            list_item.setArt({'icon': 'DefaultIconInfo.png'})
-            list_item.setInfo("video", {"title": info_text})
-            xbmcplugin.addDirectoryItem(
-                handle=self.handle,
-                url="#",
-                listitem=list_item,
-                isFolder=False
-            )
 
     def mostrar_canales_tdt(self):
         canales = obtener_canales_tdt()
@@ -221,26 +148,46 @@ class KodiAddonWrapper:
                 nombre_evento = evento.name
                 canal = evento.channel
                 tipoevento = evento.sport
-                closest_channel = find_closest_channel(canal, names)
 
                 if evento.sport not in deportes_validos:
                     continue
 
-                if closest_channel:
-                    idx = names.index(closest_channel)
+                # Buscar todos los índices que coincidan con el canal
+                indices_coincidentes = [i for i, name in enumerate(names) if normalize_channel_name(name) == normalize_channel_name(canal)]
+                
+                if not indices_coincidentes:
+                    continue
+
+                # Mostrar el primer enlace con el nombre completo del evento
+                idx_principal = indices_coincidentes[0]
+                acestream_link = links[idx_principal]
+                list_item = xbmcgui.ListItem(
+                    label=f"[COLOR {colortext}]{hora} | {nombre_evento} | {canal} | {tipoevento}[/COLOR]"
+                )
+                list_item.setInfo("video", {"title": f"{nombre_evento} | {tipoevento}"})
+                list_item.setProperty("IsPlayable", "true")
+                xbmcplugin.addDirectoryItem(
+                    handle=self.handle,
+                    url=f"plugin://script.module.horus?action=play&id={acestream_link}",
+                    listitem=list_item,
+                    isFolder=False
+                )
+
+                # Mostrar los enlaces adicionales como opciones numeradas
+                for i, idx in enumerate(indices_coincidentes[1:], start=1):
                     acestream_link = links[idx]
                     list_item = xbmcgui.ListItem(
-                        label=f"[COLOR {colortext}]{hora} - {nombre_evento} - {canal} - {tipoevento}[/COLOR]"
+                        label=f"{hora} | {nombre_evento} | Opción {i}"
                     )
-                    list_item.setInfo("video", {"title": f"{nombre_evento} - {tipoevento}"})
+                    list_item.setInfo("video", {"title": f"{nombre_evento} - {tipoevento} (Opción {i})"})
                     list_item.setProperty("IsPlayable", "true")
-
                     xbmcplugin.addDirectoryItem(
                         handle=self.handle,
                         url=f"plugin://script.module.horus?action=play&id={acestream_link}",
                         listitem=list_item,
                         isFolder=False
                     )
+
 
         xbmcplugin.endOfDirectory(self.handle)
 

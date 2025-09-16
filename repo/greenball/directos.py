@@ -1,47 +1,69 @@
 import requests
 from bs4 import BeautifulSoup
 from typing import List, Optional
+import re
 import difflib
-import json
+
 
 class Event:
-    def __init__(self, day: str, time: str, name: str, channel: str, sport: str, acestream_link: Optional[str] = None):
+    def __init__(self, day: str, time: str, name: str, channel: str, sport: str, acestream_link: Optional[str] = None, mapped_channel_name: Optional[str] = None):
         self.day = day
         self.time = time
         self.name = name
         self.channel = channel
         self.sport = sport
         self.acestream_link = acestream_link
+        self.mapped_channel_name = mapped_channel_name  # <-- NUEVO
+
+
+# --- Normalizador de nombres de canales ---
+def normalize_channel_name(name: str) -> str:
+    name = name.lower()
+    name = re.sub(r"\b(1080|720|hd|fhd|uhd|4k|multi.?audio)\b", "", name)
+    name = re.sub(r"\(.*?\)", "", name)
+    name = re.sub(r"\*|\-|🏁", "", name)
+    name = name.replace(" ", "")
+    replacements = {
+        "m+": "movistar",
+        "m.": "movistar",
+        "#vamos": "vamos",
+        "golplay": "gol",
+        "laliga": "laliga",
+        "hypermotion": "hypermotion",
+        "dazn": "dazn",
+        "movistarplus+": "movistarplus",
+    }
+    for old, new in replacements.items():
+        name = name.replace(old, new)
+    return name
+
+
+
+channel_corrections = {
+    "gol play": "gol",
+    "laliga tv hypermotion 2": "la liga hypermotion 2",
+    "laliga tv hypermotion": "la liga hypermotion",
+    "m+ deportes 2": "movistar deportes 2",
+    "m+ deportes 3": "movistar deportes 3",
+    "m+ laliga tv": "movistar la liga",
+    "la 1": "la 1",
+}
+
 
 def find_closest_channel(channel_name: str, channels_names: List[str]) -> Optional[str]:
-    """Encuentra el nombre de canal más cercano usando difflib y realiza correcciones de nombre si es necesario."""
-    
-    # Diccionario de correcciones de nombres de canales
-    channel_corrections = {
-        "GOL PLAY": "GOL TV",  
-        "LALIGA TV HYPERMOTION 2": "LaLiga Hyper 2", 
-        "LALIGA TV HYPERMOTION": "LaLiga Hyper TV", 
-        "M+ Deportes 2": "M. Deportes 2",
-        "M+ Deportes 3": "M. Deportes 3",
-        "Movistar Plus+": "M.Plus", 
-        "Movistar Plus+": "Movistar Plus",
-        "LA 1": "La1",
-        "LA 1": "LA 1 Op.1",
-        "DAZN LALIGA 2": "DAZN LaLiga 2",
-        "M+ LALIGA TV": "M. LaLiga",
-    }
-
-    # Aplicar la corrección si el canal actual tiene una sustitución
-    corrected_channel_name = channel_corrections.get(channel_name, channel_name)
-    
-    # Buscar el nombre de canal más cercano usando difflib
-    closest_matches = difflib.get_close_matches(corrected_channel_name, channels_names, n=1, cutoff=0.5)
-    
-    return closest_matches[0] if closest_matches else None
+    if not channels_names:
+        return None
+    norm_name = normalize_channel_name(channel_name)
+    corrected_name = channel_corrections.get(norm_name, norm_name)
+    norm_channels = [normalize_channel_name(c) for c in channels_names]
+    closest_matches = difflib.get_close_matches(corrected_name, norm_channels, n=1, cutoff=0.4)
+    if closest_matches:
+        idx = norm_channels.index(closest_matches[0])
+        return channels_names[idx]
+    return None
 
 
 def get_tv_programs(url: str = "https://www.marca.com/programacion-tv.html", channel_map: dict = None) -> List[Event]:
-    """Obtiene los programas de TV del URL especificado."""
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -71,14 +93,15 @@ def get_tv_programs(url: str = "https://www.marca.com/programacion-tv.html", cha
 
                 event_id = (day, time_text, event_name, channel)
                 if event_id not in seen_events:
-                    # Buscar canal más cercano
                     closest_channel = find_closest_channel(channel, channel_map["names"])
                     acestream_link = None
+                    mapped_channel_name = None
                     if closest_channel:
                         index = channel_map["names"].index(closest_channel)
                         acestream_link = channel_map["links"][index]
+                        mapped_channel_name = channel_map["names"][index]  # <-- NUEVO
 
-                    events_data.append(Event(day, time_text, event_name, channel, sport, acestream_link))
+                    events_data.append(Event(day, time_text, event_name, channel, sport, acestream_link, mapped_channel_name))
                     seen_events.add(event_id)
 
         return events_data
@@ -86,5 +109,3 @@ def get_tv_programs(url: str = "https://www.marca.com/programacion-tv.html", cha
     except requests.RequestException as e:
         print(f"Failed to retrieve TV programs from {url}: {e}")
         return []
-
-
