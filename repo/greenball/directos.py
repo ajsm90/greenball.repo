@@ -78,6 +78,8 @@ def get_tv_programs(url: str = "https://www.marca.com/programacion-tv.html", cha
             if not day_span:
                 continue
             day = day_span.text.strip()
+            day = re.sub(r'([A-Za-záéíóúñÁÉÍÓÚ]+)(\d)', r'\1 \2', day)
+
 
             events = day_section.find_all("li", class_="dailyevent")
             for event in events:
